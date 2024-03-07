@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="sky_progress" format="integer" />
+    <attr name="sky_drawable" format="reference" />
+
+
+    <declare-styleable name="NaviBusStationView">
+        <attr name="sky_progress" />
+        <attr name="sky_drawable" />
+    </declare-styleable>
+
+    <declare-styleable name="NaviBusStationRealTimeView">
+        <attr name="sky_progress" />
+        <attr name="sky_drawable" />
+        <attr name="sky_station_margin_left" format="dimension" />
+    </declare-styleable>
+
+</resources>
