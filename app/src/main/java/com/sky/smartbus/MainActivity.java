@@ -46,7 +46,8 @@ public class MainActivity extends AppCompatActivity {
                         int i = (int) (((float) progress / statoinSize) * 100);
 
 //                       nrt.setProgress(10,i);
-                       nrt.setProgress(i);
+//                       nrt.setProgress(i);
+                        nrt.scrollByProgress(i,0);
                     }
                 });
             }

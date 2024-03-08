@@ -9,6 +9,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.LinearLayout;
 
 import androidx.annotation.Nullable;
@@ -31,7 +32,7 @@ public class NaviBusStationCarView extends BaseCustomView {
     private float progressPercent = 0f;
     private int progress = 0;
 
-    private int secondeProgress= 0;
+    private int secondeProgress = 0;
 
     private int stationCount = 0;
     private float fontSize = 25;
@@ -39,6 +40,7 @@ public class NaviBusStationCarView extends BaseCustomView {
     private LinearLayout attachView;
     private NaviBusStationRealTimeView parentView;
     private int currentIndex = 0;
+    private int targetWidth = 0;
 
     public NaviBusStationCarView(Context context) {
         super(context);
@@ -140,13 +142,13 @@ public class NaviBusStationCarView extends BaseCustomView {
         progress = Math.min(progress, 100);
         progress = Math.max(progress, 0);
         this.progress = progress;
-        this.secondeProgress=  0;//初始化secondProgress
+        this.secondeProgress = 0;//初始化secondProgress
         this.progressPercent = (float) ((float) progress / 100);
         this.currentIndex = parentView.progress2Index(progress);
         postInvalidate();
     }
 
-    public void setProgress(int progress,int secondProgress){
+    public void setProgress(int progress, int secondProgress) {
         progress = Math.min(progress, 100);
         progress = Math.max(progress, 0);
         this.progress = progress;
@@ -160,19 +162,17 @@ public class NaviBusStationCarView extends BaseCustomView {
         postInvalidate();
     }
 
-    public void setSecondProgress(int secondProgress){
+    public void setSecondProgress(int secondProgress) {
         secondProgress = Math.min(secondProgress, 100);
         secondProgress = Math.max(secondProgress, 0);
         this.secondeProgress = secondProgress;
 
     }
 
-
-
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        int width = bitmap.getWidth();
+        int width = Math.max(bitmap.getWidth(),targetWidth);
         int height = bitmap.getHeight();
         //宽度测量
         int widthMeasureMode = MeasureSpec.getMode(widthMeasureSpec);
@@ -180,7 +180,11 @@ public class NaviBusStationCarView extends BaseCustomView {
         if (widthMeasureMode == MeasureSpec.EXACTLY) {
             width = widthMeasureSize;
         } else if (widthMeasureMode == MeasureSpec.UNSPECIFIED) {
-            width = attachView == null ? getResources().getDisplayMetrics().heightPixels : attachView.getWidth() + attachView.getPaddingLeft() + attachView.getPaddingRight();
+            if (targetWidth!=0){
+                width = targetWidth;
+            }else {
+                width = attachView == null ? getResources().getDisplayMetrics().widthPixels : attachView.getWidth() + attachView.getPaddingLeft() + attachView.getPaddingRight();
+            }
         } else {
             width = Math.min(widthMeasureSize, width);
         }
@@ -191,10 +195,12 @@ public class NaviBusStationCarView extends BaseCustomView {
         if (heightMeasureMode == MeasureSpec.EXACTLY) {
             height = heightMeasureSize;
         } else if (heightMeasureMode == MeasureSpec.UNSPECIFIED) {
-            height = getResources().getDisplayMetrics().heightPixels;
+            height = attachView == null ? getResources().getDisplayMetrics().heightPixels : attachView.getHeight();
         } else {
             height = (int) Math.min(heightMeasureSize, bitmap.getHeight() + strokeWidth);
         }
+
+        Log.d("=======", "onMeasure: "+width+","+height);
         setMeasuredDimension(width, height);
     }
 
@@ -202,10 +208,23 @@ public class NaviBusStationCarView extends BaseCustomView {
     public void attachView(LinearLayout stationListLinearLayout, NaviBusStationRealTimeView viewGroup) {
         attachView = stationListLinearLayout;
         parentView = viewGroup;
+        requestLayout();
+    }
+
+    public void setViewWidth(int width){
+        this.targetWidth = width;
+        requestLayout();
     }
 
     public boolean isAttached() {
         return attachView != null;
     }
 
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (bitmap != null)
+            bitmap.recycle();
+    }
 }
+

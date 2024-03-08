@@ -7,6 +7,7 @@ import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -20,6 +21,7 @@ import com.sky.smartbus.utils.FileUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author renshijie
@@ -39,6 +41,7 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
 
     private List<TextView> stations = new ArrayList<>();
     private float stationMarginLeft = 30;
+    private AtomicBoolean isTouching = new AtomicBoolean(false);
 
 
     public NaviBusStationRealTimeView(Context context) {
@@ -52,7 +55,7 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
     public NaviBusStationRealTimeView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         this.mContext = context;
-        stationMarginLeft = (int) DisplayUtil.dp2px(this.mContext, 100);
+        stationMarginLeft = (int) DisplayUtil.dp2px(this.mContext, 15);
         baseAttrProcessor = new BaseAttrProcessor(context, attrs, 0, this) {
             @Override
             protected void initAttrs() {
@@ -121,6 +124,38 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
         }
     }
 
+//    /**
+//     * 添加站台
+//     */
+//    @Deprecated
+//    public void addStation(BusStation... busStation) {
+//        if (stationListLinearLayout != null && busStation != null) {
+//            for (BusStation station : busStation) {
+//                TextView stationView = new TextView(this.mContext);
+//                ViewGroup.LayoutParams stationParams = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+//                stationView.setLayoutParams(stationParams);
+//
+//                stationView.setGravity(Gravity.CENTER_HORIZONTAL);
+//
+//                stationView.setText(station.getName());
+//                stationView.setEms(1);
+//                stationView.setSingleLine(false);
+//                stationListLinearLayout.addView(stationView);
+//                stations.add(stationView);
+//            }
+//        }
+//        if (carView!=null && !carView.isAttached()){
+//            carView.attachView(stationListLinearLayout);
+//        }
+//        //重新测量
+//        stationListLinearLayout.post(new Runnable() {
+//            @Override
+//            public void run() {
+//                carView.requestLayout();
+//            }
+//        });
+//    }
+
     /**
      * 只可添加一次
      *
@@ -128,30 +163,43 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
      */
     public void addStation(List<BusStation> busStation) {
         stationListLinearLayout.removeAllViews();
+        final int[] targetWidth = {0};
         if (stationListLinearLayout != null && busStation != null) {
             for (BusStation station : busStation) {
                 int index = busStation.indexOf(station);
-                TextView stationView = new TextView(this.mContext);
+                TextView stationView = new TextView(NaviBusStationRealTimeView.this.mContext);
 
                 LinearLayout.LayoutParams stationParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 if (index != 0) {
                     stationParams.leftMargin = (int) stationMarginLeft;
-                    Log.d("===", "initAttrs2: " + stationMarginLeft);
                 }
                 stationView.setLayoutParams(stationParams);
 
                 stationView.setGravity(Gravity.CENTER_HORIZONTAL);
-
                 stationView.setText(station.getName());
                 stationView.setEms(1);
                 stationView.setSingleLine(false);
+                stationView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        targetWidth[0] += stationView.getWidth() + stationParams.leftMargin;
+                        if (index == busStation.size() - 1) {
+                            if (carView != null) {
+                                carView.setViewWidth(targetWidth[0]);
+                            }
+                        }
+                    }
+                });
+
                 stationListLinearLayout.addView(stationView);
                 stations.add(stationView);
             }
         }
+
         if (carView != null && !carView.isAttached()) {
-            carView.attachView(stationListLinearLayout, this);
+            carView.attachView(stationListLinearLayout, NaviBusStationRealTimeView.this);
         }
+
         //重新测量
         stationListLinearLayout.post(new Runnable() {
             @Override
@@ -160,6 +208,7 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
                     carView.requestLayout();
             }
         });
+
     }
 
     /**
@@ -178,7 +227,7 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
     /**
      * 设置站台间进度
      */
-    public void setProgress(int progress,int secondProgress){
+    public void setProgress(int progress, int secondProgress) {
         progress = Math.min(progress, 100);
         progress = Math.max(0, progress);
         this.progress = progress;
@@ -187,7 +236,19 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
         secondProgress = Math.max(0, secondProgress);
 
         if (carView != null)
-            carView.setProgress(progress,secondProgress);
+            carView.setProgress(progress, secondProgress);
+
+    }
+
+
+    public void scrollByProgress(int progress, int secondProgress) {
+        setProgress(progress, secondProgress);
+
+        int i = progress2Index(progress);
+        int carLocation = getCarLocation(i);
+
+        if (!isTouching.get())
+            scrollTo(carLocation - getWidth() / 2, 0);
     }
 
     /**
@@ -238,5 +299,28 @@ public class NaviBusStationRealTimeView extends HorizontalScrollView {
         }
         float percent = (float) secondProgress / 100;
         return totoal * percent;
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (bitmap != null)
+            bitmap.recycle();
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        int action = ev.getAction();
+        if (action == MotionEvent.ACTION_DOWN) {
+            isTouching.set(true);
+        } else if (action == MotionEvent.ACTION_UP) {
+            isTouching.set(false);
+        }
+        return super.onTouchEvent(ev);
     }
 }
